@@ -108,6 +108,98 @@ function! s:to_desc(sym, dict)
   return l:desc
 endfunction
 
+function! necoghc#update_current_buffer_completion_keywords_with_lushtags() "{{{
+  let l:lushtag_result = s:lushtags([expand('%:t')])
+  if len(l:lushtag_result) <= 0
+    " We got nothing. The buffer contains no functions, typs, etc,
+    " or just lashtags aborted due to error
+    if !exists('b:necoghc_modules_cache')
+      " We need to avoid the 'variable not found' error even lashtags failed
+      let b:necoghc_buffer_function_cache = []
+      let b:necoghc_buffer_module_cache = []
+      let b:necoghc_buffer_typeconst_cache = []
+    endif
+    " We keep everything when lushtags failed (or outputs nothing)
+    " but we already have cache data. When user adds something to
+    " a program, it often breaks the integrity of source code, so
+    " the buffer may not compile, which means lushtags just fails.
+    " We do not discard the previous result, assuming this senario.
+  endif
+  let l:module_name = '.'
+  let l:llist = []
+  let l:lmlist = []
+  let l:ltclist = []
+  for l:p in l:lushtag_result
+    let l:ps = split(l:p, '\t')
+    if len(l:ps) < 4
+      continue
+    endif
+    let l:mt = l:ps[3]
+    if l:mt ==# 'f'
+      if 6 <= len(l:ps)
+        call add(l:llist, { 'word': l:ps[0], 'menu': '<fun> ' . l:ps[5][11:-2]})
+      else
+        call add(l:llist, { 'word': l:ps[0], 'menu': '<fun> (noinfo)'})
+      endif
+    elseif l:mt ==# 'i'
+      let l:addl_info = ''
+      if 6 <= len(l:ps)
+        let l:modifier = l:ps[5]
+        if l:modifier =~# '^signature'
+          let l:as_name = l:ps[5][11:-2]
+          let l:addl_info = l:addl_info . ' ' . l:as_name
+          if 7 <= len(l:ps)
+            if l:ps[6] =~# 'access:protected'
+              let l:addl_info = l:addl_info . ' (qualified)'
+            endif
+          endif
+          call add(l:lmlist, { 'word': l:as_name, 'menu': '<mod> [' . l:ps[0] . ']' . l:addl_info})
+        else
+          if l:modifier =~# 'access:protected'
+            let l:addl_info = l:addl_info . ' (qualified)'
+          endif
+        endif
+      endif
+      call add(l:lmlist, { 'word': l:ps[0], 'menu': '<mod>' . l:addl_info})
+    elseif l:mt ==# 'd'
+      call add(l:lmlist, { 'word': l:ps[0], 'menu': '<dat>'})
+    elseif l:mt ==# 't'
+      if 6 <= len(l:ps)
+        call add(l:lmlist, { 'word': l:ps[0], 'menu': '<typ> ' . l:ps[5]})
+      else
+        call add(l:lmlist, { 'word': l:ps[0], 'menu': '<typ> (noinfo)'})
+      endif
+    elseif l:mt ==# 'n'
+      if 6 <= len(l:ps)
+        call add(l:lmlist, { 'word': l:ps[0], 'menu': '<nty> ' . l:ps[5]})
+      else
+        call add(l:lmlist, { 'word': l:ps[0], 'menu': '<nty> (noinfo)'})
+      endif
+    elseif l:mt ==# 'c'
+      if 6 <= len(l:ps)
+        call add(l:ltclist, { 'word': l:ps[0], 'menu': '<ctr> ' . l:ps[5]})
+      else
+        call add(l:ltclist, { 'word': l:ps[0], 'menu': '<ctr> (noinfo)'})
+      endif
+    elseif l:mt ==# 'F'
+      if 6 <= len(l:ps)
+        call add(l:llist, { 'word': l:ps[0], 'menu': '<fld> ' . l:ps[5]})
+      else
+        call add(l:llist, { 'word': l:ps[0], 'menu': '<fld> (noinfo)'})
+      endif
+    elseif l:mt ==# 'm'
+      let l:module_name = l:ps[0]
+    elseif l:mt ==# 'e'
+      " Nothing to do
+    else
+      call add(l:llist, { 'word': l:ps[0], 'menu': '<???> '})
+    endif
+  endfor
+  let b:necoghc_buffer_function_cache = l:llist
+  let b:necoghc_buffer_module_cache = l:lmlist
+  let b:necoghc_buffer_typeconst_cache = l:ltclist
+endfunction "}}}
+
 function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
   let l:col = col('.')-1
   " HACK: When invoked from Vim, col('.') returns the position returned by the
@@ -190,6 +282,13 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
         endfor
       endif
     endfor
+    if exists('b:necoghc_buffer_function_cache')
+      let l:list = l:list + b:necoghc_buffer_module_cache
+    endif
+  elseif l:cur_keyword_str =~# '^[A-Z]'
+    if exists('b:necoghc_buffer_function_cache')
+      let l:list = l:list + b:necoghc_buffer_typeconst_cache + b:necoghc_buffer_module_cache
+    endif
   else
     for [l:mod, l:opts] in items(necoghc#get_modules())
       if !l:opts.qualified || l:opts.export
@@ -198,8 +297,11 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
         endfor
       endif
     endfor
+    if !exists('b:necoghc_buffer_function_cache')
+      call necoghc#update_current_buffer_completion_keywords_with_lushtags()
+    endif
+    let l:list = l:list + b:necoghc_buffer_function_cache
   endif
-
   return filter(l:list, 's:word_prefix(v:val, l:cur_keyword_str, l:need_prefix_filter)')
 endfunction "}}}
 
@@ -272,6 +374,24 @@ function! necoghc#get_modules() "{{{
     call necoghc#caching_modules()
   endif
   return b:necoghc_modules_cache
+endfunction "}}}
+
+function! s:lushtags(cmd) "{{{
+  lcd `=expand('%:p:h')`
+  let l:cmd = ['lushtags'] + a:cmd
+  let l:ret = s:system(l:cmd)
+  lcd -
+  let l:lines = split(l:ret, '\r\n\|[\r\n]')
+  if empty(l:lines)
+    if get(g:, 'necoghc_debug', 0)
+      echohl ErrorMsg
+      echomsg printf('neco-ghc: lushtags returned nothing: %s', join(l:cmd, ' '))
+      echohl None
+    endif
+    return []
+  else
+    return l:lines
+  endif
 endfunction "}}}
 
 function! s:ghc_mod(cmd) "{{{
@@ -406,9 +526,11 @@ endfunction "}}}
 
 function! s:on_haskell() "{{{
   call necoghc#caching_modules()
+  call necoghc#update_current_buffer_completion_keywords_with_lushtags()
 
   augroup necoghc
     autocmd InsertLeave <buffer> call necoghc#caching_modules()
+    autocmd BufWritePost <buffer> call necoghc#update_current_buffer_completion_keywords_with_lushtags()
   augroup END
 
   command! -buffer -bar -nargs=0 NecoGhcCaching

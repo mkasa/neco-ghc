@@ -1,33 +1,52 @@
-# neocomplcache-ghc (neco-ghc)
+# What is neco-ghc-lushtags?
 
-A completion plugin for Haskell, using ghc-mod
+neco-ghc-lushtags is a blazing fast completion plugin
+for Haskell using ghc-mod, lushtags, and ghc-mod-cache.
 
-## What is neco-ghc
+neco-ghc-lushtags is a project forked from
+![neco-ghc](https://github.com/eagletmt/neco-ghc),
+so most of the functions are derived from neco-ghc.
+If you have not used neco-ghc before, please see
+the site first.
 
-This plugin supports the following completion.
+neco-ghc-lushtags achieves faster completion using
+ghc-mod-cache, which is developed in this project.
+I had been frustrated by slow ghc-mod. neco-ghc calls
+ghc-mod so often, each of which calls may take a few
+seconds but they often blocked vim for more than ten
+seconds, which was unacceptable for me. I noticed
+that results of ghc-mod could be cached in most cases,
+so I developed ghc-mod-cache, which is a simple
+wrapper script of ghc-mod. ghc-mod-cache caches the
+result of `ghc-mod browse`. neco-ghc-lushtags can
+response in less than a second after the result of
+ghc-mod is cached.
 
-* pragma
-    ![](http://cache.gyazo.com/c922e323be7dbed9aa70b2bac62be45e.png)
-* language
-    ![](http://cache.gyazo.com/9df4aa3cf06fc07495d6dd67a4d07cc4.png)
-* importing a module
-    ![](http://cache.gyazo.com/17a8bf08f3a6d5e123346f5f1c74c5f9.png)
-* importing a function of a module
-    ![](http://cache.gyazo.com/d3698892a40ffb8e4bef970a02198715.png)
-* function based on importing modules
-    ![](http://cache.gyazo.com/bc168a8aad5f38c6a83b8aa1b0fb14f6.png)
+Another source of frustration was that neco-ghc does
+not complete functions in modules not installed.
+Let me show an example. Suppose we are working on a
+scaffolded Yesod site. neco-ghc does not complete
+functions in non-standard modules such as Foundation,
+Import, etc. neco-ghc-lushtags can completes such
+functions.
+
+## Additional features on top of neco-ghc
+
+<<< Here comes images. (to be taken!) >>>
 
 neco-ghc was originally implemented by @eagletmt on July 25, 2010, and then
-ujihisa added some new features.
+ujihisa added some new features. neco-ghc-lushtags was forked from
+neco-ghc by @mkasa on May 31, 2015.
 
 ## Install
 
 * Install ghc-mod package by `cabal install ghc-mod`
-* Unarchive neco-ghc and put it into a dir of your &rtp.
+* Install ![modified version of lushtags](https://github.com/mkasa/lushtags)
+* Unarchive neco-ghc-lushtags and put it into a dir of your &rtp.
 
 ## Usage
 
-neco-ghc provides `necoghc#omnifunc` for omni-completion.
+neco-ghc-lushtags provides `necoghc#omnifunc` for omni-completion.
 I recommend adding the following in your ~/.vim/ftplugin/haskell.vim.
 
 ```vim
@@ -42,7 +61,7 @@ This plugin can be used as a source of
 [neocomplcache.vim](https://github.com/Shougo/neocomplcache.vim).
 You can enjoy auto-completions without any specific configuration.
 
-This plugin also should work with [YouCompleteMe](https://github.com/Valloric/YouCompleteMe).
+This plugin also should work with [YouCompleteMe](https://github.com/Valloric/YouCompleteMe), but not tested.
 To enable auto-completions, you have to add the following setting.
 
 ```vim
@@ -80,4 +99,5 @@ If not, add in your .vimrc:
 
 ## License
 
-[BSD3 License](http://www.opensource.org/licenses/BSD-3-Clause), the same license as ghc-mod.
+[BSD3 License](http://www.opensource.org/licenses/BSD-3-Clause), the same license as ghc-mod
+and neco-ghc.
