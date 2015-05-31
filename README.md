@@ -4,7 +4,7 @@ neco-ghc-lushtags is a blazing fast completion plugin
 for Haskell using ghc-mod, lushtags, and ghc-mod-cache.
 
 neco-ghc-lushtags is a project forked from
-![neco-ghc](https://github.com/eagletmt/neco-ghc),
+[neco-ghc](https://github.com/eagletmt/neco-ghc),
 so most of the functions are derived from neco-ghc.
 If you have not used neco-ghc before, please see
 the site first.
@@ -41,7 +41,7 @@ neco-ghc by @mkasa on May 31, 2015.
 ## Install
 
 * Install ghc-mod package by `cabal install ghc-mod`
-* Install ![modified version of lushtags](https://github.com/mkasa/lushtags)
+* Install [modified version of lushtags](https://github.com/mkasa/lushtags)
 * Unarchive neco-ghc-lushtags and put it into a dir of your &rtp.
 * Copy ghc-mod-cache into PATH (e.g., ~/.cabal/bin)
 
