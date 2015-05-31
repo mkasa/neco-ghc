@@ -396,21 +396,21 @@ endfunction "}}}
 
 function! s:ghc_mod(cmd) "{{{
   lcd `=expand('%:p:h')`
-  let l:cmd = ['ghc-mod'] + a:cmd
+  let l:cmd = ['ghc-mod-cache'] + a:cmd
   let l:ret = s:system(l:cmd)
   lcd -
   let l:lines = split(l:ret, '\r\n\|[\r\n]')
   if empty(l:lines)
     if get(g:, 'necoghc_debug', 0)
       echohl ErrorMsg
-      echomsg printf('neco-ghc: ghc-mod returned nothing: %s', join(l:cmd, ' '))
+      echomsg printf('neco-ghc: ghc-mod-cache returned nothing: %s', join(l:cmd, ' '))
       echohl None
     endif
     return []
   elseif l:lines[0] =~# '^Dummy:0:0:Error:'
     if get(g:, 'necoghc_debug', 0)
       echohl ErrorMsg
-      echomsg printf('neco-ghc: ghc-mod returned error messages: %s', join(l:cmd, ' '))
+      echomsg printf('neco-ghc: ghc-mod-cache returned error messages: %s', join(l:cmd, ' '))
       for l:line in l:lines
         echomsg l:line
       endfor
@@ -497,7 +497,7 @@ function! s:dangling_import(n) "{{{
 endfunction "}}}
 
 function! necoghc#ghc_mod_version() "{{{
-  let l:ret = s:system(['ghc-mod', 'version'])
+  let l:ret = s:system(['ghc-mod-cache', 'version'])
   return matchstr(l:ret, '\cghc-mod\%(.exe\)\?\s\+version\s\+\zs\%(\d\+\.\)*\d\+')
 endfunction "}}}
 
