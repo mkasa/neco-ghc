@@ -42,8 +42,9 @@ neco-ghc by @mkasa on May 31, 2015.
 
 * Install ghc-mod package by `cabal install ghc-mod`
 * Install [modified version of lushtags](https://github.com/mkasa/lushtags)
-* Unarchive neco-ghc-lushtags and put it into a dir of your &rtp.
-* Copy ghc-mod-cache into PATH (e.g., ~/.cabal/bin)
+* Put neco-ghc-lushtags in the plugin directory (You probably use
+  Pathogen, Bundle, etc).
+* Copy bin/ghc-mod-cache into PATH (e.g., ~/.cabal/bin)
 
 ## Usage
 
