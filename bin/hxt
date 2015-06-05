@@ -1,0 +1,58 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+
+my $param_f = undef;
+GetOptions(
+    "f=s" => \$param_f
+);
+
+my $cabal_file = shift;
+
+unless(defined $cabal_file) {
+    my @cabal_files = <*.cabal>;
+    if(@cabal_files == 0) {
+        print STDERR "ERROR: no cabal file in the current directory.\n";
+        exit 1;
+    }
+    if(1 < @cabal_files) {
+        print STDERR "ERROR: multiple cabal files.\n";
+        exit 1;
+    }
+    $cabal_file = $cabal_files[0];
+}
+
+my $cabal_base_name = $cabal_file;
+$cabal_base_name =~ s|^.*/||;
+$cabal_base_name =~ s|\.cabal$||;
+
+open my $fh, "<", $cabal_file or die;
+
+my $i_am_in_extensions = 0;
+my $i_am_in_test = 0;
+while(<$fh>) {
+    if(/\bextensions:/) {
+        $i_am_in_extensions = 1;
+    } elsif(/\b(.*):/) {
+        $i_am_in_extensions = 0;
+    } elsif(/^(\S+)/) {
+        my $type = $1;
+        $i_am_in_extensions = 0;
+        if($type eq 'test-suite') {
+            $i_am_in_test = 1;
+        } else {
+            $i_am_in_test = 0;
+        }
+    }
+    if($i_am_in_extensions && !$i_am_in_test) {
+        if(/\b(\S+)\s*$/) {
+            my $extention_name = $1;
+            if(defined $param_f) {
+                print(" " . $param_f . " " . $extention_name)
+            } else {
+                print "$extention_name\n";
+            }
+        }
+    }
+}

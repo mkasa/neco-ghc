@@ -1,0 +1,68 @@
+#!/usr/bin/env perl
+
+use strict;
+
+my $cabal_file = shift;
+
+unless(defined $cabal_file) {
+    my @cabal_files = <*.cabal>;
+    if(@cabal_files == 0) {
+        print STDERR "ERROR: no cabal file in the current directory.\n";
+        exit 1;
+    }
+    if(1 < @cabal_files) {
+        print STDERR "ERROR: multiple cabal files.\n";
+        exit 1;
+    }
+    $cabal_file = $cabal_files[0];
+}
+
+my $cabal_base_name = $cabal_file;
+$cabal_base_name =~ s|^.*/||;
+$cabal_base_name =~ s|\.cabal$||;
+
+my @hoo_files = <$ENV{'HOME'}/.cabal/share/*/hoogle-*/databases/>;
+if(@hoo_files == 0) {
+    print "ERROR: please do 'hoogle data', first.\n";
+    exit 1;
+}
+
+open my $fh, "<", $cabal_file or die;
+
+my $i_am_in_depends = 0;
+while(<$fh>) {
+    if(/\bbuild-depends:/) {
+        $i_am_in_depends = 1;
+    } elsif(/\b(.*):/) {
+        $i_am_in_depends = 0;
+    } elsif(/^(\S+)/) {
+        $i_am_in_depends = 0;
+    } else {
+        if($i_am_in_depends) {
+            if(/^(\s+),\s*(\S+)/) {
+                my $module_name = $2;
+                print "$module_name\n";
+                my $cmd = "hoogle data $module_name";
+                print STDERR "\t$cmd\n"; system $cmd;
+                if($?) {
+                    exit($? >> 8);
+                }
+            }
+        }
+    }
+}
+
+print @hoo_files;
+my $cmd = "hoogle combine " . join(' ', @hoo_files);
+print STDERR "\t$cmd\n"; system $cmd;
+
+$cmd = "cabal haddock --hoogle --internal";
+print STDERR "\t$cmd\n"; system $cmd;
+
+$cmd = "hoogle convert dist/doc/html/$cabal_base_name/${cabal_base_name}.txt";
+print STDERR "\t$cmd\n"; system $cmd;
+
+$cmd = "hoogle combine dist/doc/html/$cabal_base_name/${cabal_base_name}.hoo";
+print STDERR "\t$cmd\n"; system $cmd;
+
+print STDERR "Done.\n";
