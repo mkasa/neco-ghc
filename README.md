@@ -32,7 +32,13 @@ functions.
 
 ## Additional features on top of neco-ghc
 
-<<< Here comes images. (to be taken!) >>>
+Record accessors.
+
+![Record accessors](https://www.evernote.com/shard/s75/sh/27ffcd40-65ad-4ebc-893b-e7448077cea4/b27a68078c3f0fa6/res/f051b76a-fe1c-4caf-a10e-24f0d9e3a9da/skitch.png)
+
+Non-standard modules.
+
+![Non-standard modules](https://www.evernote.com/shard/s75/sh/74fdad24-85ac-47da-9097-1f5842d40992/c7d0c6be3a6d9f82/res/cc91eb57-964c-4d98-bb76-8d22ad21e74f/skitch.png)
 
 neco-ghc was originally implemented by @eagletmt on July 25, 2010, and then
 ujihisa added some new features. neco-ghc-lushtags was forked from
