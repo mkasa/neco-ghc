@@ -55,7 +55,7 @@ def record_ghc_mod_invocation(args):
 def main():
     if len(sys.argv) < 2:
         estat = subprocess.call(["ghc-mod"] + sys.argv[1:])
-        record_ghc_mod_invocation(sys.argv)
+        # record_ghc_mod_invocation(sys.argv)
         sys.exit(estat >> 8)
 
     if sys.argv[1] == "browse":
@@ -79,7 +79,7 @@ def main():
             sys.exit(0)
         sys.exit(2)
 
-    record_ghc_mod_invocation(sys.argv)
+    # record_ghc_mod_invocation(sys.argv)
     estat = subprocess.call(["ghc-mod"] + sys.argv[1:])
     sys.exit(estat >> 8)
 
