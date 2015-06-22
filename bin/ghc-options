@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+
+import sys, os, re
+import argparse
+import subprocess, hashlib
+
+def get_project_dir(fname):
+    if fname == None:
+        pw = os.getcwd()
+    else:
+        pw = os.path.dirname(fname)
+        if pw == '':
+            pw = os.getcwd()
+    while True:
+        if os.path.realpath(pw) == "/":
+            return (".", None)
+        for f in os.listdir(pw):
+            if re.search("\.cabal$", f):
+                if os.path.isfile(os.path.join(pw, f)):
+                    return (pw, f)
+        pw = os.path.normpath(pw + "/..")
+
+def get_lang_ext_from_haskell_source(fname):
+    retval = []
+    try:
+        with open(fname, "r") as f:
+            for l in f:
+                r = re.search(r'{-#\s*LANGUAGE\s+(\S+).*?#-}', l)
+                if r == None: continue
+                retval.append(r.group(1))
+    except:
+        pass
+    return retval
+
+def get_cabal_lang_exts(cabal_file, pdir):
+    if cabal_file == None:
+        return []
+    retval = []
+    with open(os.path.join(pdir, cabal_file), "r") as f:
+        i_am_in_extensions = False
+        i_am_in_test = False
+        for l in f:
+            r = re.search(r'\bextensions:', l)
+            if r != None:
+                i_am_in_extensions = True
+            else:
+                r = re.search(r'\b(.*):', l)
+                if r != None:
+                    i_am_in_extensions = False
+                else:
+                    r = re.search(r'^(\S+)', l)
+                    if r != None:
+                        t = r.group(1)
+                        i_am_in_extensions = False
+                        if t == 'test-suite':
+                            i_am_in_test = True
+                        else:
+                            i_am_in_test = False
+            if i_am_in_extensions and not i_am_in_test:
+                r = re.search(r'\b(\S+)\s*$', l)
+                if r != None:
+                    extention_name = r.group(1)
+                    retval.append(extention_name)
+    return retval
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('fname')
+    args = parser.parse_args()
+    pdir, cabal_file = get_project_dir(args.fname)
+    lang_exts = get_cabal_lang_exts(cabal_file, pdir)
+    lang_exts += get_lang_ext_from_haskell_source(args.fname)
+    for e in lang_exts:
+        sys.stdout.write(" -X %s" % e)
+
+if __name__ == '__main__':
+    main()
+
