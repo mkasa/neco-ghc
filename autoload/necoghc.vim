@@ -381,10 +381,14 @@ function! necoghc#get_modules() "{{{
 endfunction "}}}
 
 function! s:lushtags(cmd) "{{{
-  lcd `=expand('%:p:h')`
-  let l:cmd = ['lushtags'] + a:cmd
-  let l:ret = s:system(l:cmd)
-  lcd -
+  let l:dir = getcwd()
+  try
+    lcd `=expand('%:p:h')`
+    let l:cmd = ['lushtags'] + a:cmd
+    let l:ret = s:system(l:cmd)
+  finally
+    lcd `=l:dir`
+  endtry
   let l:lines = split(l:ret, '\r\n\|[\r\n]')
   if empty(l:lines)
     if get(g:, 'necoghc_debug', 0)
