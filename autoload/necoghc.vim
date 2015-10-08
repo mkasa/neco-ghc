@@ -97,7 +97,7 @@ function! s:word_prefix(dict, keyword, need_prefix_filter) "{{{
 endfunction "}}}
 
 function! s:to_desc(sym, dict)
-  let l:desc = '[ghc] '
+  let l:desc = ''
   if has_key(a:dict, 'kind')
     let l:desc .= printf('%s %s %s', a:dict.kind, a:sym, a:dict.args)
   elseif has_key(a:dict, 'type')
@@ -235,7 +235,8 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
   if l:line =~# '^import\>.\{-}('
     let l:mod = matchstr(l:line, '^import\s\+\%(qualified\s\+\)\?\zs[^ (]\+')
     for [l:sym, l:dict] in items(necoghc#browse(l:mod))
-      call add(l:list, { 'word': l:sym, 'menu': s:to_desc(l:mod . '.' . l:sym, l:dict)})
+      call add(l:list, { 'word': l:sym,
+            \            'menu': s:to_desc(l:mod . '.' . l:sym, l:dict)})
     endfor
     return filter(l:list, 's:word_prefix(v:val, l:cur_keyword_str, 0)')
   endif
@@ -246,27 +247,27 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
       let s:list_cache = s:ghc_mod(['list'])
     endif
     for l:mod in s:list_cache
-      call add(l:list, { 'word': l:mod, 'menu': '[ghc] ' . l:mod })
+      call add(l:list, { 'word': l:mod })
     endfor
   elseif l:syn =~# 'Pragma'
     if l:line[:a:cur_keyword_pos-1] =~# '{-#\s\+$'
       for l:p in s:pragmas
-        call add(l:list, { 'word': l:p, 'menu': '[ghc] ' . l:p })
+        call add(l:list, { 'word': l:p })
       endfor
     elseif l:line =~# 'LANGUAGE'
       if !exists('s:lang_cache')
         let s:lang_cache = s:ghc_mod(['lang'])
       endif
       for l:lang in s:lang_cache
-        call add(l:list, { 'word': l:lang, 'menu': '[ghc] ' . l:lang })
-        call add(l:list, { 'word': 'No' . l:lang, 'menu': '[ghc] No' . l:lang })
+        call add(l:list, { 'word': l:lang })
+        call add(l:list, { 'word': 'No' . l:lang })
       endfor
     elseif l:line =~# 'OPTIONS_GHC'
       if !exists('s:flag_cache')
         let s:flag_cache = s:ghc_mod(['flag'])
       endif
       for l:flag in s:flag_cache
-        call add(l:list, { 'word': l:flag, 'menu': '[ghc] ' . l:flag })
+        call add(l:list, { 'word': l:flag })
       endfor
     endif
   elseif l:cur_keyword_str =~# '\.'
@@ -278,7 +279,8 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
     for [l:mod, l:opts] in items(necoghc#get_modules())
       if l:mod == l:qual || (has_key(l:opts, 'as') && l:opts.as == l:qual)
         for [l:sym, l:dict] in items(necoghc#browse(l:mod))
-          call add(l:list, { 'word': l:qual . '.' . l:sym, 'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
+          call add(l:list, { 'word': l:qual . '.' . l:sym,
+                \            'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
         endfor
       endif
     endfor
@@ -293,7 +295,8 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) "{{{
     for [l:mod, l:opts] in items(necoghc#get_modules())
       if !l:opts.qualified || l:opts.export
         for [l:sym, l:dict] in items(necoghc#browse(l:mod))
-          call add(l:list, { 'word': l:sym, 'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
+          call add(l:list, { 'word': l:sym,
+                \            'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
         endfor
       endif
     endfor
@@ -323,7 +326,8 @@ function! s:multiline_import(cur_text, type) "{{{
       else " 'list'
         let l:list = []
         for [l:sym, l:dict] in items(necoghc#browse(l:mod))
-          call add(l:list, { 'word': l:sym, 'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
+          call add(l:list, { 'word': l:sym,
+                \            'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
         endfor
         return [0, l:list]
       endif
@@ -395,10 +399,18 @@ function! s:lushtags(cmd) "{{{
 endfunction "}}}
 
 function! s:ghc_mod(cmd) "{{{
-  lcd `=expand('%:p:h')`
-  let l:cmd = ['ghc-mod-cache'] + a:cmd
+  let l:dir = getcwd()
+  try
+    " Calling lcd during a call to lcd, i.e. "lcd `=s:get_ghcmod_root()`",
+    " results in an error. To circumvent this, we call s:get_ghcmod_root()
+    " indirectly.
+    let l:ghcmod_dir = s:get_ghcmod_root()
+    lcd `=l:ghcmod_dir`
+    let l:cmd = ['ghc-mod-cache'] + a:cmd
   let l:ret = s:system(l:cmd)
-  lcd -
+  finally
+    lcd `=l:dir`
+  endtry
   let l:lines = split(l:ret, '\r\n\|[\r\n]')
   if empty(l:lines)
     if get(g:, 'necoghc_debug', 0)
@@ -535,6 +547,22 @@ function! s:on_haskell() "{{{
 
   command! -buffer -bar -nargs=0 NecoGhcCaching
         \ call necoghc#caching_modules()
+endfunction "}}}
+
+" Adapted version of s:find_basedir from
+" https://github.com/eagletmt/ghcmod-vim/blob/3e012a5b0b904c5c32eeea39071534d492a64a0f/autoload/ghcmod.vim#L336-L350
+function! s:get_ghcmod_root() "{{{
+  if !exists('b:ghcmod_root')
+    let l:dir = getcwd()
+    try
+      lcd `=expand('%:p:h')`
+      let b:ghcmod_root =
+        \ substitute(s:system(['ghc-mod', 'root']), '\n*$', '', '')
+    finally
+      lcd `=l:dir`
+    endtry
+  endif
+  return b:ghcmod_root
 endfunction "}}}
 
 " vim: ts=2 sw=2 sts=2 foldmethod=marker
