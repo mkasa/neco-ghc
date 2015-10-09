@@ -388,6 +388,7 @@ function! s:lushtags(cmd) "{{{
     let l:ret = s:system(l:cmd)
   finally
     lcd `=l:dir`
+    throw v:exception
   endtry
   let l:lines = split(l:ret, '\r\n\|[\r\n]')
   if empty(l:lines)
