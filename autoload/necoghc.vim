@@ -386,9 +386,10 @@ function! s:lushtags(cmd) "{{{
     lcd `=expand('%:p:h')`
     let l:cmd = ['lushtags'] + a:cmd
     let l:ret = s:system(l:cmd)
+  catch
+    throw v:exception
   finally
     lcd `=l:dir`
-    throw v:exception
   endtry
   let l:lines = split(l:ret, '\r\n\|[\r\n]')
   if empty(l:lines)
