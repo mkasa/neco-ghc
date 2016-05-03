@@ -3,15 +3,20 @@
 import sys, os, re
 import subprocess, hashlib
 
+debugging = False
+
 def get_project_dir():
     pw = os.getcwd()
     while True:
         if pw == "/":
-            return (".", None)
+            return (".", None, None)
         for f in os.listdir(pw):
             if re.search("\.cabal$", f):
                 if os.path.isfile(os.path.join(pw, f)):
-                    return (pw, f)
+                    if os.path.isfile(os.path.join(pw, "stack.yaml")):
+                        return (pw, f, "stack.yaml")
+                    else:
+                        return (pw, f, None)
         pw = os.path.normpath(pw + "/..")
 
 def encode_options(args):
@@ -47,19 +52,33 @@ def cache_outdated(cache_file, user_file):
         return True
 
 def record_ghc_mod_invocation(args):
+    if not debugging: return
     s = os.environ['HOME']
     log_file = os.path.join(s, ".ghcmodcache_log")
     with open(log_file, "a") as f:
         print >> f, args
 
 def main():
+    # parse options
+    if 2 <= len(sys.argv):
+        if sys.argv[1] == "-d" or sys.argv[1] == "--debug":
+            debugging = True
+            del sys.argv[1]
+
+    # check if using stack
+    project_dir, cabal_file_name, stack_file_name = get_project_dir()
+    if stack_file_name == None:
+        call_ghc_mod = ["ghc-mod"]
+    else:
+        call_ghc_mod = ["stack", "exec", "--", "ghc-mod"]
+
+    # do a main job
     if len(sys.argv) < 2:
-        estat = subprocess.call(["ghc-mod"] + sys.argv[1:])
-        # record_ghc_mod_invocation(sys.argv)
+        estat = subprocess.call(call_ghc_mod + sys.argv[1:])
+        record_ghc_mod_invocation(sys.argv)
         sys.exit(estat >> 8)
 
     if sys.argv[1] == "browse":
-        project_dir, cabal_file_name = get_project_dir()
         ghc_mod_cache_dir = os.path.join(project_dir, ".ghcmodcache")
         if not os.path.exists(ghc_mod_cache_dir):
             os.mkdir(ghc_mod_cache_dir)
@@ -68,19 +87,20 @@ def main():
         cached_file_name = os.path.join(ghc_mod_cache_dir, module_name + "-" + canonical_option_coded)
         if not os.path.exists(cached_file_name) or (is_user_module and cache_outdated(cached_file_name, module_path_if_any)):
             with open(cached_file_name, "w") as f:
+                record_ghc_mod_invocation(sys.argv)
                 if is_user_module:
                     os.chdir(project_dir)
-                    estat = subprocess.call(["ghc-mod"] + sys.argv[1:], stdout=f)
+                    estat = subprocess.call(call_ghc_mod + sys.argv[1:], stdout=f)
                 else:
-                    estat = subprocess.call(["ghc-mod"] + sys.argv[1:], stdout=f)
+                    estat = subprocess.call(call_ghc_mod + sys.argv[1:], stdout=f)
             if estat != 0: sys.exit(estat >> 8)
         with open(cached_file_name, "r") as f:
             print f.read(),
             sys.exit(0)
         sys.exit(2)
 
-    # record_ghc_mod_invocation(sys.argv)
-    estat = subprocess.call(["ghc-mod"] + sys.argv[1:])
+    record_ghc_mod_invocation(sys.argv)
+    estat = subprocess.call(call_ghc_mod + sys.argv[1:])
     sys.exit(estat >> 8)
 
 if __name__ == "__main__":
