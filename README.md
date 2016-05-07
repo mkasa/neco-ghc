@@ -9,6 +9,23 @@ so most of the functions are derived from neco-ghc.
 If you have not used neco-ghc before, please see
 the site first.
 
+Anyway, this plugin completes words in the following way:
+
+* pragma
+    ![](http://cache.gyazo.com/c922e323be7dbed9aa70b2bac62be45e.png)
+* language
+    ![](http://cache.gyazo.com/9df4aa3cf06fc07495d6dd67a4d07cc4.png)
+* importing a module
+    ![](http://cache.gyazo.com/17a8bf08f3a6d5e123346f5f1c74c5f9.png)
+* importing a function of a module
+    ![](http://cache.gyazo.com/d3698892a40ffb8e4bef970a02198715.png)
+* function based on importing modules
+    ![](http://cache.gyazo.com/bc168a8aad5f38c6a83b8aa1b0fb14f6.png)
+* record accessors
+    ![Record accessors](https://www.evernote.com/shard/s75/sh/27ffcd40-65ad-4ebc-893b-e7448077cea4/b27a68078c3f0fa6/res/f051b76a-fe1c-4caf-a10e-24f0d9e3a9da/skitch.png)
+* non-standard (local) modules
+    ![Non-standard modules](https://www.evernote.com/shard/s75/sh/74fdad24-85ac-47da-9097-1f5842d40992/c7d0c6be3a6d9f82/res/cc91eb57-964c-4d98-bb76-8d22ad21e74f/skitch.png)
+
 neco-ghc-lushtags achieves faster completion using
 ghc-mod-cache, which is developed in this project.
 I had been frustrated by slow ghc-mod. neco-ghc calls
@@ -30,27 +47,17 @@ functions in non-standard modules such as Foundation,
 Import, etc. neco-ghc-lushtags can completes such
 functions.
 
-## Additional features on top of neco-ghc
-
-Record accessors.
-
-![Record accessors](https://www.evernote.com/shard/s75/sh/27ffcd40-65ad-4ebc-893b-e7448077cea4/b27a68078c3f0fa6/res/f051b76a-fe1c-4caf-a10e-24f0d9e3a9da/skitch.png)
-
-Non-standard modules.
-
-![Non-standard modules](https://www.evernote.com/shard/s75/sh/74fdad24-85ac-47da-9097-1f5842d40992/c7d0c6be3a6d9f82/res/cc91eb57-964c-4d98-bb76-8d22ad21e74f/skitch.png)
-
 neco-ghc was originally implemented by @eagletmt on July 25, 2010, and then
 ujihisa added some new features. neco-ghc-lushtags was forked from
 neco-ghc by @mkasa on May 31, 2015.
 
 ## Install
 
-* Install ghc-mod package by `cabal install ghc-mod`
-* Install [modified version of lushtags](https://github.com/mkasa/lushtags)
+* Install ghc-mod package by `stack install ghc-mod` or `cabal install ghc-mod`
+* Install [modified version of lushtags](https://github.com/mkasa/lushtags).
 * Put neco-ghc-lushtags in the plugin directory (You probably use
   Pathogen, Bundle, etc).
-* Copy bin/ghc-mod-cache into PATH (e.g., ~/.cabal/bin)
+* Copy bin/ghc-mod-cache into PATH (e.g., ~/.local/bin or ~/.cabal/bin)
 
 Note: If you use ghc-mod 5.4, you should use ghc-mod 5.5+.
 Because, ghc-mod 5.5 fixes the rootdir problem.
