@@ -1,68 +1,115 @@
 #!/usr/bin/env perl
 
 use strict;
+use Getopt::Long;
 
-my $cabal_file = shift;
+sub do_for_cabal
+{
+    my $cabal_file = shift;
+    my $cabal_base_name = $cabal_file;
+    $cabal_base_name =~ s|^.*/||;
+    $cabal_base_name =~ s|\.cabal$||;
 
-unless(defined $cabal_file) {
-    my @cabal_files = <*.cabal>;
-    if(@cabal_files == 0) {
-        print STDERR "ERROR: no cabal file in the current directory.\n";
+    my @hoo_files = <$ENV{'HOME'}/.cabal/share/*/hoogle-*/databases/>;
+    if(@hoo_files == 0) {
+        print "ERROR: please do 'hoogle data', first.\n";
         exit 1;
     }
-    if(1 < @cabal_files) {
-        print STDERR "ERROR: multiple cabal files.\n";
-        exit 1;
-    }
-    $cabal_file = $cabal_files[0];
-}
 
-my $cabal_base_name = $cabal_file;
-$cabal_base_name =~ s|^.*/||;
-$cabal_base_name =~ s|\.cabal$||;
+    open my $fh, "<", $cabal_file or die;
 
-my @hoo_files = <$ENV{'HOME'}/.cabal/share/*/hoogle-*/databases/>;
-if(@hoo_files == 0) {
-    print "ERROR: please do 'hoogle data', first.\n";
-    exit 1;
-}
-
-open my $fh, "<", $cabal_file or die;
-
-my $i_am_in_depends = 0;
-while(<$fh>) {
-    if(/\bbuild-depends:/) {
-        $i_am_in_depends = 1;
-    } elsif(/\b(.*):/) {
-        $i_am_in_depends = 0;
-    } elsif(/^(\S+)/) {
-        $i_am_in_depends = 0;
-    } else {
-        if($i_am_in_depends) {
-            if(/^(\s+),\s*(\S+)/) {
-                my $module_name = $2;
-                print "$module_name\n";
-                my $cmd = "hoogle data $module_name";
-                print STDERR "\t$cmd\n"; system $cmd;
-                if($?) {
-                    exit($? >> 8);
+    my $i_am_in_depends = 0;
+    while(<$fh>) {
+        if(/\bbuild-depends:/) {
+            $i_am_in_depends = 1;
+        } elsif(/\b(.*):/) {
+            $i_am_in_depends = 0;
+        } elsif(/^(\S+)/) {
+            $i_am_in_depends = 0;
+        } else {
+            if($i_am_in_depends) {
+                if(/^(\s+),\s*(\S+)/) {
+                    my $module_name = $2;
+                    print "$module_name\n";
+                    my $cmd = "hoogle data $module_name";
+                    print STDERR "\t$cmd\n"; system $cmd;
+                    if($?) {
+                        exit($? >> 8);
+                    }
                 }
             }
         }
     }
+
+    print @hoo_files;
+    my $cmd = "hoogle combine " . join(' ', @hoo_files);
+    print STDERR "\t$cmd\n"; system $cmd;
+
+    $cmd = "cabal haddock --hoogle --internal";
+    print STDERR "\t$cmd\n"; system $cmd;
+
+    $cmd = "hoogle convert dist/doc/html/$cabal_base_name/${cabal_base_name}.txt";
+    print STDERR "\t$cmd\n"; system $cmd;
+
+    $cmd = "hoogle combine dist/doc/html/$cabal_base_name/${cabal_base_name}.hoo";
+    print STDERR "\t$cmd\n"; system $cmd;
+
+    print STDERR "Done.\n";
 }
 
-print @hoo_files;
-my $cmd = "hoogle combine " . join(' ', @hoo_files);
-print STDERR "\t$cmd\n"; system $cmd;
+sub do_cmd
+{
+    my $cmd = shift;
+    print STDERR "CMD: $cmd\n";
+    system $cmd;
+    if($?) {
+        print STDERR "ERROR.\n";
+        exit 2;
+    }
+}
 
-$cmd = "cabal haddock --hoogle --internal";
-print STDERR "\t$cmd\n"; system $cmd;
+sub find_project_root
+{
+    my $origpwd = $ENV{'PWD'};
+    my $pwd = $origpwd;
+    while($pwd ne '/') {
+        if(-e "$pwd/stack.yaml") {
+            return ("stack", $pwd);
+        }
+        if(0 < <$pwd/*.cabal>) {
+            return ("cabal", $pwd);
+        }
+        $pwd =~ s|/[^/]*$||;
+        $pwd = '/' if($pwd eq '');
+    }
+    return ("none", $origpwd);
+}
 
-$cmd = "hoogle convert dist/doc/html/$cabal_base_name/${cabal_base_name}.txt";
-print STDERR "\t$cmd\n"; system $cmd;
+my ($type, $project_root) = find_project_root();
+if($type eq 'stack') {
+    # See
+    # https://github.com/commercialhaskell/stack/issues/55#issuecomment-155186311
+    # for the code below.
+    do_cmd("stack build hoogle");
+    do_cmd("stack build haddock");
+    do_cmd("stack haddock");
+    do_cmd("stack exec -- hoogle data -d $project_root/.stack-work/hoogle");
+} else {
+    # cabal mode
+    my $cabal_file = shift;
 
-$cmd = "hoogle combine dist/doc/html/$cabal_base_name/${cabal_base_name}.hoo";
-print STDERR "\t$cmd\n"; system $cmd;
+    unless(defined $cabal_file) {
+        my @cabal_files = <$project_root/*.cabal>;
+        if(@cabal_files == 0) {
+            print STDERR "ERROR: no cabal file in the current directory.\n";
+            exit 1;
+        }
+        if(1 < @cabal_files) {
+            print STDERR "ERROR: multiple cabal files.\n";
+            exit 1;
+        }
+        $cabal_file = $cabal_files[0];
+    }
+    do_for_cabal($cabal_file);
+}
 
-print STDERR "Done.\n";

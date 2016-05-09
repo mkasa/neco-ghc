@@ -1,0 +1,52 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+
+sub do_cmd
+{
+    my $cmd = shift;
+    # print STDERR "CMD: $cmd\n";
+    system $cmd;
+    if($?) {
+        print STDERR "ERROR from the command below.\n";
+        print STDERR "    $cmd\n";
+        exit 2;
+    }
+}
+
+sub shell_escape
+{
+    my $st = shift;
+    $st =~ s|([><\&\*\\\!\"\#\$\%\'\(\)\\\~\[\]\+])|\\$1|g;
+    return $st;
+}
+
+sub find_project_root
+{
+    my $origpwd = $ENV{'PWD'};
+    my $pwd = $origpwd;
+    while($pwd ne '/') {
+        # print STDERR "Checking $pwd\n";
+        if(-e "$pwd/stack.yaml") {
+            return ("stack", $pwd);
+        }
+        if(0 < <$pwd/*.cabal>) {
+            return ("cabal", $pwd);
+        }
+        $pwd =~ s|/[^/]*$||;
+        $pwd = '/' if($pwd eq '');
+    }
+    # print STDERR "Nothing.\n";
+    return ("none", $origpwd);
+}
+
+my ($type, $project_root) = find_project_root();
+my $search_key = shell_escape(join(' ', @ARGV));
+if($type eq 'stack') {
+    do_cmd("stack exec -- hoogle search -d $project_root/.stack-work/hoogle -- $search_key");
+} else {
+    # NOTE: should search the next hoogle in the PATH, but it is cumbersome to implement... (and I'm not using it!)
+    do_cmd("~/.local/bin/hoogle search $search_key");
+}
+
