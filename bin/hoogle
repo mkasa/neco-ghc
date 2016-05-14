@@ -42,11 +42,26 @@ sub find_project_root
 }
 
 my ($type, $project_root) = find_project_root();
-my $search_key = shell_escape(join(' ', @ARGV));
 if($type eq 'stack') {
-    do_cmd("stack exec -- hoogle search -d $project_root/.stack-work/hoogle -- $search_key");
+    # do_cmd("stack exec -- hoogle search -d $project_root/.stack-work/hoogle -- $search_key");
+    # for(@ARGV) { print "A:$_\n"; }
+    if($ARGV[0] eq 'generate') {
+        do_cmd("hoogle_orig " . join(' ', map { shell_escape($_) } @ARGV));
+    } else {
+        my @opts;
+        my $nskip = 0;
+        for my $s (@ARGV) {
+            if(0 < $nskip) { $nskip--; next; }
+            if($s eq '--start') { $nskip++; next; }
+            push(@opts, $s);
+        }
+        if(0 < @opts && $opts[0] eq 'search') { shift @opts; }
+        my $search_opt_str = join(' ', map { shell_escape($_) } @opts);
+        do_cmd("hoogle_orig search $search_opt_str -d $project_root/.stack-work/hoogle");
+    }
 } else {
     # NOTE: should search the next hoogle in the PATH, but it is cumbersome to implement... (and I'm not using it!)
+    my $search_key = shell_escape(join(' ', @ARGV));
     do_cmd("~/.local/bin/hoogle search $search_key");
 }
 

@@ -90,10 +90,21 @@ if($type eq 'stack') {
     # See
     # https://github.com/commercialhaskell/stack/issues/55#issuecomment-155186311
     # for the code below.
-    do_cmd("stack build hoogle");
+    unless(-x `which hoogle`) {
+        print STDERR "ERROR: hoogle is not found.\n";
+        print STDERR "       please install hoogle from https://github.com/ndmitchell/hoogle\n";
+        print STDERR "       note that the latest version, ver 5 on the GitHub repo is compatible\n";
+        print STDERR "       but the stackage version (v4) is not compatible with other tools here.\n";
+        exit 2;
+    }
+    my $hoogle_ver = `hoogle --version`; chomp $hoogle_ver;
+    unless($hoogle_ver =~ m|^Hoogle v5\.|) {
+        print STDERR "ERROR: hoogle must be version 5 or higher. (Your version: $hoogle_ver)\n";
+        exit 2;
+    }
     do_cmd("stack build haddock");
     do_cmd("stack haddock");
-    do_cmd("stack exec -- hoogle data -d $project_root/.stack-work/hoogle");
+    do_cmd("stack exec -- hoogle generate --local -d $project_root/.stack-work/hoogle");
 } else {
     # cabal mode
     my $cabal_file = shift;
