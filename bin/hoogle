@@ -49,15 +49,35 @@ if($type eq 'stack') {
         do_cmd("hoogle_orig " . join(' ', map { shell_escape($_) } @ARGV));
     } else {
         my @opts;
+        my $flag_info = 0;
+        my $flag_verbose = 0;
+        my $flag_link = 0;
         my $nskip = 0;
         for my $s (@ARGV) {
             if(0 < $nskip) { $nskip--; next; }
-            if($s eq '--start') { $nskip++; next; }
+            if($s eq '--info' || $s eq '-i') { $flag_info = 1; }
+            if($s eq '--verbose' || $s eq '-v') { $flag_verbose = 1; }
+            if($s eq '--link' || $s eq '-l') { $flag_link = 1; }
             push(@opts, $s);
         }
-        if(0 < @opts && $opts[0] eq 'search') { shift @opts; }
         my $search_opt_str = join(' ', map { shell_escape($_) } @opts);
-        do_cmd("hoogle_orig search $search_opt_str -d $project_root/.stack-work/hoogle");
+        my $cmdline = "hoogle_orig $search_opt_str -d $project_root/.stack-work/hoogle";
+        if(0 < @opts && $opts[0] eq 'search') {
+            my @outputs = `$cmdline`;
+            if($?) {
+                print "ERROR: $cmdline\n"; exit 0;
+            }
+            @outputs = map { chomp; $_ } @outputs;
+            if(0 < @outputs && $outputs[0] =~ m|^Query:|) { shift @outputs; }
+            if(!$flag_info && $flag_verbose) {
+                for(@outputs) {
+                    # $_ .= ' -- Substr';
+                }
+            }
+            print join("\n", @outputs), "\n";
+        } else {
+            do_cmd($cmdline);
+        }
     }
 } else {
     # NOTE: should search the next hoogle in the PATH, but it is cumbersome to implement... (and I'm not using it!)
