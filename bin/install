@@ -1,0 +1,26 @@
+#!/bin/bash
+
+INSTALL_DIR=$HOME/.local/bin
+
+if [ ! -e $INSTALL_DIR/ghc-mod ] ; then
+    echo "ghc-mod was not found"
+    exit 2
+fi
+
+cp ghc-mod-cache $INSTALL_DIR/
+cp ghc-options $INSTALL_DIR/
+cp hoogleall $INSTALL_DIR/
+cp hxt $INSTALL_DIR/
+
+if [ ! -e $INSTALL_DIR/hoogle ] ; then
+    echo "hoogle was not found"
+fi
+if [ -e $INSTALL_DIR/hoogle -a -e $INSTALL_DIR/hoogle_orig ] ; then
+    touch /dev/null
+    # do nothing
+else
+    echo "only hoogle was found. rename to hoogle_orig"
+    mv $INSTALL_DIR/hoogle $INSTALL_DIR/hoogle_orig
+fi
+cp hoogle $INSTALL_DIR/hoogle
+
