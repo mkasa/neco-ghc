@@ -10,6 +10,7 @@ fi
 cp ghc-mod-cache $INSTALL_DIR/
 cp ghc-options $INSTALL_DIR/
 cp hoogleall $INSTALL_DIR/
+cp hscopeall $INSTALL_DIR/
 cp hxt $INSTALL_DIR/
 
 if [ ! -e $INSTALL_DIR/hoogle ] ; then
