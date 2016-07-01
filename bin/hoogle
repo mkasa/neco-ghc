@@ -1,0 +1,87 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+
+sub do_cmd
+{
+    my $cmd = shift;
+    # print STDERR "CMD: $cmd\n";
+    system $cmd;
+    if($?) {
+        print STDERR "ERROR from the command below.\n";
+        print STDERR "    $cmd\n";
+        exit 2;
+    }
+}
+
+sub shell_escape
+{
+    my $st = shift;
+    $st =~ s|([><\&\*\\\!\"\#\$\%\'\(\)\\\~\[\]\+])|\\$1|g;
+    return $st;
+}
+
+sub find_project_root
+{
+    my $origpwd = $ENV{'PWD'};
+    my $pwd = $origpwd;
+    while($pwd ne '/') {
+        # print STDERR "Checking $pwd\n";
+        if(-e "$pwd/stack.yaml") {
+            return ("stack", $pwd);
+        }
+        if(0 < <$pwd/*.cabal>) {
+            return ("cabal", $pwd);
+        }
+        $pwd =~ s|/[^/]*$||;
+        $pwd = '/' if($pwd eq '');
+    }
+    # print STDERR "Nothing.\n";
+    return ("none", $origpwd);
+}
+
+my ($type, $project_root) = find_project_root();
+if($type eq 'stack') {
+    # do_cmd("stack exec -- hoogle search -d $project_root/.stack-work/hoogle -- $search_key");
+    # for(@ARGV) { print "A:$_\n"; }
+    if($ARGV[0] eq 'generate') {
+        do_cmd("hoogle_orig " . join(' ', map { shell_escape($_) } @ARGV));
+    } else {
+        my @opts;
+        my $flag_info = 0;
+        my $flag_verbose = 0;
+        my $flag_link = 0;
+        my $nskip = 0;
+        for my $s (@ARGV) {
+            if(0 < $nskip) { $nskip--; next; }
+            if($s eq '--info' || $s eq '-i') { $flag_info = 1; }
+            if($s eq '--verbose' || $s eq '-v') { $flag_verbose = 1; }
+            if($s eq '--link' || $s eq '-l') { $flag_link = 1; }
+            push(@opts, $s);
+        }
+        my $search_opt_str = join(' ', map { shell_escape($_) } @opts);
+        my $cmdline = "hoogle_orig $search_opt_str -d $project_root/.stack-work/hoogle";
+        if(0 < @opts && $opts[0] eq 'search') {
+            my @outputs = `$cmdline`;
+            if($?) {
+                print "ERROR: $cmdline\n"; exit 0;
+            }
+            @outputs = map { chomp; $_ } @outputs;
+            if(0 < @outputs && $outputs[0] =~ m|^Query:|) { shift @outputs; }
+            if(!$flag_info && $flag_verbose) {
+                for(@outputs) {
+                    # $_ .= ' -- Substr';
+                }
+            }
+            print join("\n", @outputs), "\n";
+        } else {
+            do_cmd($cmdline);
+        }
+    }
+} else {
+    # NOTE: should search the next hoogle in the PATH, but it is cumbersome to implement... (and I'm not using it!)
+    my $search_key = shell_escape(join(' ', @ARGV));
+    do_cmd("~/.local/bin/hoogle search $search_key");
+}
+
