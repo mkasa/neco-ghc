@@ -267,8 +267,13 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
       endfor
     elseif l:line =~# 'LANGUAGE'
       if !exists('s:lang_cache')
-        let s:lang_cache = s:ghc_mod(['lang'])
+        let s:lang_cache = s:ghc_mod(['lang', '-s'])
       endif
+      echom "HOGE"
+      for l:lang in s:lang_cache
+        echom ":" . l:lang
+      endfor
+      echom "MOGE"
       for l:lang in s:lang_cache
         call add(l:list, { 'word': l:lang, 'menu': '[ghc] ' . l:lang })
         call add(l:list, { 'word': 'No' . l:lang, 'menu': '[ghc] No' . l:lang })
