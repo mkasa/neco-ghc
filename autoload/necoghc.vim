@@ -254,7 +254,8 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
   let l:syn = s:synname()
   if l:line =~# '^import\>'
     if !exists('s:list_cache')
-      let s:list_cache = s:ghc_mod(['list'])
+      " let s:list_cache = s:ghc_mod(['list', '-s'])
+      let s:list_cache = s:necoghc_all_module_name_cache
     endif
     for l:mod in s:list_cache
       call add(l:list, { 'word': l:mod, 'menu': '[ghc] ' . l:mod })
@@ -481,6 +482,15 @@ function! necoghc#caching_modules() abort "{{{
   endif
 endfunction "}}}
 
+function! necoghc#caching_all_module_names() abort "{{{
+  if !exists('s:necoghc_all_module_name_cache')
+    let l:cmd = ['ghc-mod-cache', 'modules']
+    let l:ret = s:system(l:cmd)
+    let l:lines = split(l:ret, '\r\n\|[\r\n]')
+    let s:necoghc_all_module_name_cache = filter(l:lines, "v:val !~# '^Warning:'")
+  endif
+endfunction "}}}
+
 function! necoghc#get_modules() abort "{{{
   if !exists('b:necoghc_modules_cache')
     call necoghc#caching_modules()
@@ -669,6 +679,7 @@ endfunction "}}}
 
 function! s:on_haskell() abort "{{{
   call necoghc#caching_modules()
+  call necoghc#caching_all_module_names()
   call necoghc#update_current_buffer_completion_keywords_with_lushtags()
 
   augroup necoghc
