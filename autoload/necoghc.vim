@@ -280,7 +280,7 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
       endfor
     elseif l:line =~# 'OPTIONS_GHC'
       if !exists('s:flag_cache')
-        let s:flag_cache = s:ghc_mod(['flag'])
+        let s:flag_cache = s:ghc_mod(['flag', '-s'])
       endif
       for l:flag in s:flag_cache
         call add(l:list, { 'word': l:flag, 'menu': '[ghc] ' . l:flag })
