@@ -1,5 +1,8 @@
 
-let s:source = { 'name' : 'cabal' }
+let s:source = {
+    \ 'name' : 'cabal',
+    \ 'filetypes': { 'cabal': 1 }
+    \ }
 
 function! s:source.gather_candidates(...) abort "{{{
     return map([
