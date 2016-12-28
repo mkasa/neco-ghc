@@ -254,7 +254,6 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
   let l:syn = s:synname()
   if l:line =~# '^import\>'
     if !exists('s:list_cache')
-      " let s:list_cache = s:ghc_mod(['list', '-s'])
       let s:list_cache = s:necoghc_all_module_name_cache
     endif
     for l:mod in s:list_cache
@@ -479,6 +478,7 @@ function! s:channel2id(channel) abort "{{{
 endfunction"}}}
 
 function! necoghc#caching_modules() abort "{{{
+  call necoghc#caching_all_module_names()
   let b:necoghc_modules_cache = s:extract_modules()
   if s:is_async
     for l:mod in keys(b:necoghc_modules_cache)
@@ -497,8 +497,10 @@ function! necoghc#caching_all_module_names() abort "{{{
 endfunction "}}}
 
 function! necoghc#invalidate_all_module_names() abort "{{{
-  if !exists('s:necoghc_all_module_name_cache')
+  if exists('s:necoghc_all_module_name_cache')
     unlet s:necoghc_all_module_name_cache
+    unlet s:list_cache
+    call necoghc#caching_modules()
   endif
 endfunction "}}}
 
