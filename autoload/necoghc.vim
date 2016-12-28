@@ -269,11 +269,6 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
       if !exists('s:lang_cache')
         let s:lang_cache = s:ghc_mod(['lang', '-s'])
       endif
-      echom "HOGE"
-      for l:lang in s:lang_cache
-        echom ":" . l:lang
-      endfor
-      echom "MOGE"
       for l:lang in s:lang_cache
         call add(l:list, { 'word': l:lang, 'menu': '[ghc] ' . l:lang })
         call add(l:list, { 'word': 'No' . l:lang, 'menu': '[ghc] No' . l:lang })
@@ -291,7 +286,6 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
     let l:idx = matchend(l:cur_keyword_str, '^.*\.')
     let l:qual = l:cur_keyword_str[0 : l:idx-2]
     let l:name = l:cur_keyword_str[l:idx :]
-
     for [l:mod, l:opts] in items(necoghc#get_modules())
       if l:mod == l:qual || (has_key(l:opts, 'as') && l:opts.as == l:qual)
         for [l:sym, l:dict] in items(necoghc#browse(l:mod))
@@ -454,6 +448,7 @@ function! s:job_handler(id, msg, event) abort "{{{
 
   let candidates += lines
 endfunction"}}}
+
 function! s:ghc_mod_caching_async(lines, mod) abort "{{{
   let l:dict = {}
   for l:line in a:lines
@@ -474,6 +469,7 @@ function! s:ghc_mod_caching_async(lines, mod) abort "{{{
   endfor
   let s:browse_cache[a:mod] = l:dict
 endfunction "}}}
+
 function! s:channel2id(channel) abort "{{{
   return matchstr(a:channel, '\d\+')
 endfunction"}}}
