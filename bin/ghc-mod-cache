@@ -1,9 +1,14 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import sys, os, re
 import subprocess, hashlib
 
 debugging = False
+
+def debug_print(m):
+    if debugging:
+        print(m, file=sys.stderr)
 
 def get_project_dir():
     pw = os.getcwd()
@@ -29,7 +34,7 @@ def encode_options(args):
             if module_name == None:
                 module_name = s
             else:
-                print >> sys.stderr, "ERROR: multiple module names?"
+                print("ERROR: multiple module names?", file=sys.stderr)
     if module_name:
         m.update(s)
     return (module_name, m.hexdigest())
@@ -56,12 +61,24 @@ def record_ghc_mod_invocation(args):
     s = os.environ['HOME']
     log_file = os.path.join(s, ".ghcmodcache_log")
     with open(log_file, "a") as f:
-        print >> f, args
+        print(args, file=f)
+
+def get_depencencies_from_yaml_dict(obj):
+    retval = []
+    for k, v in obj.items():
+        if k == 'dependencies':
+            retval += v
+            continue
+        if isinstance(v, dict):
+            tmp = get_depencencies_from_yaml_dict(v)
+            retval += tmp
+    return retval
 
 def main():
     # parse options
     if 2 <= len(sys.argv):
         if sys.argv[1] == "-d" or sys.argv[1] == "--debug":
+            global debugging
             debugging = True
             del sys.argv[1]
 
@@ -71,6 +88,7 @@ def main():
         call_ghc_mod = ["ghc-mod"]
     else:
         call_ghc_mod = ["stack", "exec", "--", "ghc-mod"]
+    debug_print("Project dir: " + project_dir)
 
     # do a main job
     if len(sys.argv) < 2:
@@ -78,14 +96,68 @@ def main():
         record_ghc_mod_invocation(sys.argv)
         sys.exit(estat >> 8)
 
-    if sys.argv[1] == "browse" or sys.argv[1] == "modules":
+    sub_command = sys.argv[1]
+    if sub_command == "install_module":
+        if stack_file_name == None:
+            print("'ghc-mod-cache install_module' does not work with non-stack projects", file=sys.stderr)
+            sys.exit(2)
+        if len(sys.argv) < 3:
+            print("Usage: ghc-mod-cache install_module <module name>", file=sys.stderr)
+            sys.exit(2)
+        module_name = sys.argv[2]
+        ghc_mod_cache_dir = os.path.join(project_dir, ".ghcmodcache")
+        if os.path.exists(ghc_mod_cache_dir):
+            for fn in os.listdir(ghc_mod_cache_dir):
+                if fn.startswith("-"):
+                    file_name = os.path.join(ghc_mod_cache_dir, fn)
+                    os.unlink(file_name)
+                    debug_print("Removed " + file_name)
+        cmd_line = ['stack', 'build', module_name]
+        debug_print("CMD: " + (" ".join(cmd_line)))
+        estat = subprocess.call(cmd_line)
+        if estat != 0: sys.exit(2)
+        sys.exit(0)
+
+    if sub_command == "browse" or sub_command == "modules":
         ghc_mod_cache_dir = os.path.join(project_dir, ".ghcmodcache")
         if not os.path.exists(ghc_mod_cache_dir):
             os.mkdir(ghc_mod_cache_dir)
         module_name, canonical_option_coded = encode_options(sys.argv[2:])
         (is_user_module, module_path_if_any) = check_if_module_is_user(project_dir, module_name)
         cached_file_name = os.path.join(ghc_mod_cache_dir, (module_name if module_name else "") + "-" + canonical_option_coded)
-        if not os.path.exists(cached_file_name) or (is_user_module and cache_outdated(cached_file_name, module_path_if_any)):
+        cache_did_not_exist = not os.path.exists(cached_file_name)
+        cached_member_list_was_outdated = is_user_module and cache_outdated(cached_file_name, module_path_if_any)
+        cabal_abs_file_path = os.path.join(project_dir, cabal_file_name)
+        package_yaml_abs_file_path = os.path.join(project_dir, "package.yaml")
+        stack_abs_file_path = os.path.join(project_dir, stack_file_name)
+        cached_module_list_was_outdated = module_name == None and (cache_outdated(cached_file_name, cabal_abs_file_path) or
+                                                                   cache_outdated(cached_file_name, stack_abs_file_path) or
+                                                                   cache_outdated(cached_file_name, package_yaml_abs_file_path))
+        debug_print("Module name: " + (module_name if module_name else "(None)"))
+        debug_print("Cache dir: " + ("no" if cache_did_not_exist else "yes"))
+        debug_print("Member list: " + ("need to create" if cached_member_list_was_outdated else "valid"))
+        debug_print("Module list: " + ("need to create" if cached_module_list_was_outdated else "valid"))
+        if cache_did_not_exist or cached_member_list_was_outdated or cached_module_list_was_outdated:
+            if cached_module_list_was_outdated:
+                # Probabpy we need to check updated module lists.
+                try:
+                    import yaml
+                    debug_print("Imported yaml module")
+                    with open(package_yaml_abs_file_path, "r") as f:
+                        package_yaml = yaml.load(f)
+                        module_names = {}
+                        for m in get_depencencies_from_yaml_dict(package_yaml):
+                            module_names[m] = None
+                        if 'name' in package_yaml:
+                            my_module_name = package_yaml['name']
+                            if my_module_name in module_names: del module_names[my_module_name]
+                        cmd_line = ['stack', 'build'] + module_names.keys()
+                        debug_print("CMD: " + (" ".join(cmd_line)))
+                        estat = subprocess.call(cmd_line)
+                    debug_print("Done")
+                except Exception as e:
+                    debug_print("Error")
+                    print("There was an exception: ", e, file=sys.stderr)
             with open(cached_file_name, "w") as f:
                 record_ghc_mod_invocation(sys.argv)
                 if is_user_module:
@@ -95,7 +167,7 @@ def main():
                     estat = subprocess.call(call_ghc_mod + sys.argv[1:], stdout=f)
             if estat != 0: sys.exit(estat >> 8)
         with open(cached_file_name, "r") as f:
-            print f.read(),
+            sys.stdout.write(f.read())
             sys.exit(0)
         sys.exit(2)
 
