@@ -359,7 +359,7 @@ function! necoghc#browse(mod) abort "{{{
 endfunction "}}}
 
 function! s:ghc_mod_caching_browse(mod) abort "{{{
-  let l:cmd = ['browse', '-o']
+  let l:cmd = ['browse', '-s', '-o']
   if get(g:, 'necoghc_enable_detailed_browse')
     let l:cmd += ['-d']
   endif
@@ -493,6 +493,12 @@ function! necoghc#caching_all_module_names() abort "{{{
     let l:ret = s:system(l:cmd)
     let l:lines = split(l:ret, '\r\n\|[\r\n]')
     let s:necoghc_all_module_name_cache = filter(l:lines, "v:val !~# '^Warning:'")
+  endif
+endfunction "}}}
+
+function! necoghc#invalidate_all_module_names() abort "{{{
+  if !exists('s:necoghc_all_module_name_cache')
+    unlet s:necoghc_all_module_name_cache
   endif
 endfunction "}}}
 
