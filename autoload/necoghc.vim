@@ -353,7 +353,7 @@ function! necoghc#browse(mod) abort "{{{
 endfunction "}}}
 
 function! s:ghc_mod_caching_browse(mod) abort "{{{
-  let l:cmd = ['browse', '-s', '-o']
+  let l:cmd = ['browse', '-o']
   if get(g:, 'necoghc_enable_detailed_browse')
     let l:cmd += ['-d']
   endif
