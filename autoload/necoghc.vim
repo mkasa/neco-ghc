@@ -254,6 +254,7 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
   let l:syn = s:synname()
   if l:line =~# '^import\>'
     if !exists('s:list_cache')
+      call necoghc#caching_all_module_names()
       let s:list_cache = s:necoghc_all_module_name_cache
     endif
     for l:mod in s:list_cache
