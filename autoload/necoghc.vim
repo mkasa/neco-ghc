@@ -116,8 +116,15 @@ function! s:to_desc(sym, dict) abort
   return l:desc
 endfunction
 
-function! necoghc#update_current_buffer_completion_keywords_with_lushtags() "{{{
+function! necoghc#debug_print_module_list() abort "{{{
+
+endfunction "}}}
+
+function! necoghc#update_current_buffer_completion_keywords_with_lushtags() abort "{{{
   let l:lushtag_result = s:lushtags([expand('%:t')])
+  if get(g:, 'necoghc_trace', 0)
+    echomsg printf("Lushtag returned %d lines", len(l:lushtag_result))
+  endif
   if len(l:lushtag_result) <= 0
     " We got nothing. The buffer contains no functions, typs, etc,
     " or just lashtags aborted due to error
@@ -126,6 +133,9 @@ function! necoghc#update_current_buffer_completion_keywords_with_lushtags() "{{{
       let b:necoghc_buffer_function_cache = []
       let b:necoghc_buffer_module_cache = []
       let b:necoghc_buffer_typeconst_cache = []
+      if get(g:, 'necoghc_trace', 0)
+        echomsg printf("Lushtag did not yield a result")
+      endif
     endif
     " We keep everything when lushtags failed (or outputs nothing)
     " but we already have cache data. When user adds something to
@@ -209,6 +219,9 @@ function! necoghc#update_current_buffer_completion_keywords_with_lushtags() "{{{
 endfunction "}}}
 
 function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{{
+  if get(g:, 'necoghc_trace', 0)
+    echomsg "Completer called"
+  endif
   let l:col = col('.')-1
   " HACK: When invoked from Vim, col('.') returns the position returned by the
   " omnifunc in findstart phase.
@@ -234,17 +247,23 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
   let l:list = []
   let l:line = getline('.')[: a:cur_keyword_pos]
 
-  if (&filetype ==# 'lhaskell') 
+  if (&filetype ==# 'lhaskell')
     let l:line = substitute(l:line, '^>[ \t]*', '', 'g')
   endif
 
   let [nothing, just_list] = s:multiline_import(l:line, 'list')
   if !nothing
+    if get(g:, 'necoghc_trace', 0)
+      echomsg "Multiline import >>"
+    endif
     return s:filter(just_list, l:cur_keyword_str, 0, l:need_filter)
   endif
 
   if l:line =~# '^import\>.\{-}('
     let l:mod = matchstr(l:line, '^import\s\+\%(qualified\s\+\)\?\zs[^ (]\+')
+    if get(g:, 'necoghc_trace', 0)
+      echomsg printf("Importing a function from %s", l:mod)
+    endif
     for [l:sym, l:dict] in items(necoghc#browse(l:mod))
       call add(l:list, { 'word': l:sym, 'menu': s:to_desc(l:mod . '.' . l:sym, l:dict)})
     endfor
@@ -286,21 +305,55 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
     let l:idx = matchend(l:cur_keyword_str, '^.*\.')
     let l:qual = l:cur_keyword_str[0 : l:idx-2]
     let l:name = l:cur_keyword_str[l:idx :]
+    if get(g:, 'necoghc_trace', 0)
+      echomsg "Qualified completion: " . l:qual
+    endif
     for [l:mod, l:opts] in items(necoghc#get_modules())
       if l:mod == l:qual || (has_key(l:opts, 'as') && l:opts.as == l:qual)
+        if get(g:, 'necoghc_trace', 0)
+          echomsg "  Hit module " . l:mod . "{"
+        endif
         for [l:sym, l:dict] in items(necoghc#browse(l:mod))
           call add(l:list, { 'word': l:qual . '.' . l:sym, 'menu': s:to_desc(l:mod . '.' . l:sym, l:dict) })
+          if get(g:, 'necoghc_trace', 0)
+            echomsg "    " . l:sym
+          endif
         endfor
+        if get(g:, 'necoghc_trace', 0)
+          echomsg "  }"
+        endif
       endif
     endfor
     if exists('b:necoghc_buffer_function_cache')
+      if get(g:, 'necoghc_trace', 0)
+        echomsg "  Added a buffer function cache {"
+        for l:sym in b:necoghc_buffer_function_cache
+          echomsg "    " . l:sym
+        endfor
+        echomsg "  }"
+      endif
       let l:list = l:list + b:necoghc_buffer_module_cache
     endif
   elseif l:cur_keyword_str =~# '^[A-Z]'
     if exists('b:necoghc_buffer_function_cache')
+      if get(g:, 'necoghc_trace', 0)
+        echomsg "  Added a type const cache {"
+        for l:sym in b:necoghc_buffer_typeconst_cache
+          echomsg "    " . l:sym
+        endfor
+        echomsg "  }"
+        echomsg "  Added a buffer function cache {"
+        for l:sym in b:necoghc_buffer_function_cache
+          echomsg "    " . l:sym
+        endfor
+        echomsg "  }"
+      endif
       let l:list = l:list + b:necoghc_buffer_typeconst_cache + b:necoghc_buffer_module_cache
     endif
   else
+    if get(g:, 'necoghc_trace', 0)
+      echomsg "  Other caess"
+    endif
     for [l:mod, l:opts] in items(necoghc#get_modules())
       if !l:opts.qualified || l:opts.export
         for [l:sym, l:dict] in items(necoghc#browse(l:mod))
@@ -309,11 +362,22 @@ function! necoghc#get_complete_words(cur_keyword_pos, cur_keyword_str) abort "{{
       endif
     endfor
     if !exists('b:necoghc_buffer_function_cache')
+      if get(g:, 'necoghc_trace', 0)
+        echomsg "  Added a buffer function cache {"
+        for l:sym in b:necoghc_buffer_function_cache
+          echomsg "    " . l:sym
+        endfor
+        echomsg "  }"
+      endif
+      let l:list = l:list + b:necoghc_buffer_typeconst_cache + b:necoghc_buffer_module_cache
       call necoghc#update_current_buffer_completion_keywords_with_lushtags()
     endif
     let l:list = l:list + b:necoghc_buffer_function_cache
   endif
 
+  if get(g:, 'necoghc_trace', 0)
+    echomsg "Listing Done"
+  endif
   return s:filter(l:list, l:cur_keyword_str, l:need_prefix_filter,
         \         l:need_filter)
 endfunction "}}}
@@ -347,7 +411,14 @@ endfunction "}}}
 
 function! necoghc#browse(mod) abort "{{{
   if !has_key(s:browse_cache, a:mod)
+    if get(g:, 'necoghc_trace', 0)
+      echomsg "    Call ghc_mod_caching_browse"
+    endif
     call s:ghc_mod_caching_browse(a:mod)
+  else
+    if get(g:, 'necoghc_trace', 0)
+      echomsg "    Using cache"
+    endif
   endif
   return get(s:browse_cache, a:mod, {})
 endfunction "}}}
@@ -363,12 +434,21 @@ function! s:ghc_mod_caching_browse(mod) abort "{{{
     let l:cmd += g:NecoghcExtraBrowseOptions(a:mod)
   endif
   let l:cmd += [a:mod]
+  if get(g:, 'necoghc_trace', 0)
+    echomsg "    Command: " . join(l:cmd, ' ')
+  endif
 
   if !s:is_async
+    if get(g:, 'necoghc_trace', 0)
+      echomsg "    calling ghc_mod_caching_async"
+    endif
     call s:ghc_mod_caching_async(s:ghc_mod(l:cmd), a:mod)
     return
   endif
 
+  if get(g:, 'necoghc_trace', 0)
+    echomsg "    async call..."
+  endif
   if len(s:job_info) > s:max_processes
         \ || !empty(filter(copy(s:job_info), 'v:val.mod != a:mod'))
     return
@@ -496,7 +576,9 @@ endfunction "}}}
 function! necoghc#invalidate_all_module_names() abort "{{{
   if exists('s:necoghc_all_module_name_cache')
     unlet s:necoghc_all_module_name_cache
-    unlet s:list_cache
+    if exists('s:list_cache')
+      unlet s:list_cache
+    endif
     call necoghc#caching_modules()
   endif
 endfunction "}}}
@@ -546,10 +628,16 @@ function! s:ghc_mod(cmd) abort "{{{
     lcd `=l:dir`
   endtry
   let l:lines = split(l:ret, '\r\n\|[\r\n]')
-
+  if get(g:, 'necoghc_trace', 0)
+    echomsg '===GHC-MOD==='
+    for l:line in l:lines
+      echomsg '  ' . l:line
+    endfor
+    echomsg '============='
+  endif
   let l:warnings = filter(copy(l:lines), "v:val =~# '^Warning:'")
   let l:lines = filter(copy(l:lines), "v:val !~# '^Warning:'")
-  let l:errors = filter(copy(l:lines), "v:val =~# '^Dummy:0:0:Error:'")
+  let l:errors = filter(copy(l:lines), "v:val =~# '^Error:'")
 
   if empty(l:lines) && get(g:, 'necoghc_debug', 0)
     echohl ErrorMsg
@@ -558,7 +646,7 @@ function! s:ghc_mod(cmd) abort "{{{
   endif
 
   if !empty(l:errors)
-    if get(g:, 'necoghc_debug', 0)
+    if get(g:, 'necoghc_debug', 0) || get(g:, 'necoghc_trace', 0)
       echohl ErrorMsg
       echomsg printf('neco-ghc: ghc-mod returned error messages: %s', join(l:cmd, ' '))
       for l:line in l:errors
@@ -570,15 +658,13 @@ function! s:ghc_mod(cmd) abort "{{{
   endif
 
   if !empty(l:warnings)
-    if get(g:, 'necoghc_debug', 0)
-      echohl ErrorMsg
+    if get(g:, 'necoghc_debug', 0) || get(g:, 'necoghc_trace', 0)
       echomsg printf('neco-ghc: ghc-mod-cache returned warning messages: %s', join(l:cmd, ' '))
       for l:line in l:warnings
         echomsg l:line
       endfor
-      echohl None
     endif
-    return []
+    " return []
   endif
 
   return l:lines
@@ -640,6 +726,20 @@ function! s:extract_modules() abort "{{{
     let l:line += 1
   endwhile
 
+  if get(g:, 'necoghc_trace', 0)
+    echomsg "Extracted modules:"
+    for [l:sym, l:dict] in items(l:modules)
+      let l:as_str = ""
+      if has_key(l:dict, 'as')
+        let l:as_str = " " . l:dict.as
+      endif
+      if l:dict['qualified']
+        echomsg "  qualified " . l:sym . l:as_str
+      else
+        echomsg "  " . l:sym . l:as_str
+      endif
+    endfor
+  endif
   return l:modules
 endfunction "}}}
 
