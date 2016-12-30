@@ -102,6 +102,8 @@ def ensure_there_is_build_plan_cache(resolver):
     if os.path.exists(build_plan_json_file_path) and not cache_outdated(build_plan_json_file_path, build_plan_file_path):
         return
     build_plan_json_file_path_tmp = build_plan_json_file_path + ".tmp"
+    if not os.path.exists(build_plan_yaml):
+        subprocess.check_call(['stack', 'setup'])
     try:
         from yaml import CLoader
         debug_print("Loading build plan YAML using CLoader")
