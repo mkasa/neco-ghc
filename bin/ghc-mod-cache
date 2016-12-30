@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from __future__ import print_function
 import sys, os, re
@@ -75,6 +75,55 @@ def get_depencencies_from_yaml_dict(obj):
             retval += tmp
     return retval
 
+def parse_stack_yaml(stack_yaml_path):
+    import yaml
+    debug_print("Imported yaml module")
+    with open(stack_yaml_path, "r") as f:
+        stack_yaml = yaml.load(f)
+    debug_print("Loaded stack.yaml")
+    return stack_yaml
+
+def load_build_plan_cache(resolver):
+    import json
+    # The line below is duplicated to ensure_there_is_build_plan_cache()
+    build_plan_json_file_path = os.path.join(os.path.expanduser("~/.stack/build-plan"), resolver + ".json")
+    try:
+        with open(build_plan_json_file_path, "r") as f:
+            build_plan_json = json.load(f)
+    except IOError as e:
+        print("ERROR:", e, file=sys.stderr)
+        sys.exit(2)
+    return build_plan_json
+
+def ensure_there_is_build_plan_cache(resolver):
+    build_plan_file_path = os.path.join(os.path.expanduser("~/.stack/build-plan"), resolver + ".yaml")
+    # The line below is duplicated to load_build_plan_cache()
+    build_plan_json_file_path = os.path.join(os.path.expanduser("~/.stack/build-plan"), resolver + ".json")
+    if os.path.exists(build_plan_json_file_path) and not cache_outdated(build_plan_json_file_path, build_plan_file_path):
+        return
+    build_plan_json_file_path_tmp = build_plan_json_file_path + ".tmp"
+    try:
+        from yaml import CLoader
+        debug_print("Loading build plan YAML using CLoader")
+        with open(build_plan_file_path, "r") as f:
+            build_plan_yaml = yaml.load(f, Loader=CLoader)
+    except ImportError as e:
+        debug_print("Loading build plan YAML using pure Python parser")
+        with open(build_plan_file_path, "r") as f:
+            build_plan_yaml = yaml.load(f)
+    debug_print("Loaded build plan YAML")
+    packages = build_plan_yaml['packages']
+    modules = []
+    for k, v in packages.items():
+        module = {'Name' : k, 'Modules': v['description']['modules']}
+        modules.append(module)
+    import json
+    with open(build_plan_json_file_path_tmp, "w") as f:
+        json.dump(modules, f)
+    # This is to atomically create a cache file...
+    # If you hit CTRL+C while converting, still you would not see the final file.
+    os.rename(build_plan_json_file_path_tmp, build_plan_json_file_path)
+
 def main():
     # parse options
     if 2 <= len(sys.argv):
@@ -98,6 +147,36 @@ def main():
         sys.exit(estat >> 8)
 
     sub_command = sys.argv[1]
+
+    cabal_abs_file_path = os.path.join(project_dir, cabal_file_name) if cabal_file_name else None
+    package_yaml_abs_file_path = os.path.join(project_dir, "package.yaml")
+    stack_abs_file_path = os.path.join(project_dir, stack_file_name) if stack_file_name else None
+    ghc_mod_cache_dir = os.path.join(project_dir, ".ghcmodcache")
+
+    if sub_command == "list_stackage":
+        option_str = sys.argv[2] if 2 <= len(sys.argv) else None
+        if stack_file_name == None:
+            print("'ghc-mod-cache install_module' does not work with non-stack projects", file=sys.stderr)
+            sys.exit(2)
+        try:
+            stack_yaml = parse_stack_yaml(stack_abs_file_path)
+            if not 'resolver' in stack_yaml:
+                print("ERROR: no resolver in stack.yaml", file=sys.stderr)
+                sys.exit(2)
+            resolver = stack_yaml['resolver']
+            ensure_there_is_build_plan_cache(resolver)
+            modules = load_build_plan_cache(resolver)
+        except Exception as e:
+            debug_print("Error")
+            print("There was an exception: ", e, file=sys.stderr)
+            sys.exit(2)
+        for d in modules:
+            print(d['Name'])
+            if option_str == '--modules': continue
+            for m in d['Modules']:
+                print("  " + m)
+        sys.exit(0)
+
     if sub_command == "install_module":
         if stack_file_name == None:
             print("'ghc-mod-cache install_module' does not work with non-stack projects", file=sys.stderr)
@@ -106,7 +185,6 @@ def main():
             print("Usage: ghc-mod-cache install_module <module name>", file=sys.stderr)
             sys.exit(2)
         module_name = sys.argv[2]
-        ghc_mod_cache_dir = os.path.join(project_dir, ".ghcmodcache")
         if os.path.exists(ghc_mod_cache_dir):
             for fn in os.listdir(ghc_mod_cache_dir):
                 if fn.startswith("-"):
@@ -120,7 +198,6 @@ def main():
         sys.exit(0)
 
     if sub_command == "browse" or sub_command == "modules":
-        ghc_mod_cache_dir = os.path.join(project_dir, ".ghcmodcache")
         if not os.path.exists(ghc_mod_cache_dir):
             os.mkdir(ghc_mod_cache_dir)
         module_name, canonical_option_coded = encode_options(sys.argv[2:])
@@ -128,9 +205,6 @@ def main():
         cached_file_name = os.path.join(ghc_mod_cache_dir, (module_name if module_name else "") + "-" + canonical_option_coded)
         cache_did_not_exist = not os.path.exists(cached_file_name)
         cached_member_list_was_outdated = is_user_module and cache_outdated(cached_file_name, module_path_if_any)
-        cabal_abs_file_path = os.path.join(project_dir, cabal_file_name) if cabal_file_name else None
-        package_yaml_abs_file_path = os.path.join(project_dir, "package.yaml")
-        stack_abs_file_path = os.path.join(project_dir, stack_file_name) if stack_file_name else None
         cached_module_list_was_outdated = module_name == None and (cache_outdated(cached_file_name, cabal_abs_file_path) or
                                                                    cache_outdated(cached_file_name, stack_abs_file_path) or
                                                                    cache_outdated(cached_file_name, package_yaml_abs_file_path))
@@ -159,7 +233,9 @@ def main():
                 except Exception as e:
                     debug_print("Error")
                     print("There was an exception: ", e, file=sys.stderr)
-            with open(cached_file_name, "w") as f:
+                    sys.exit(2)
+            cached_file_name_tmp = cached_file_name + ".tmp"
+            with open(cached_file_name_tmp, "w") as f:
                 record_ghc_mod_invocation(sys.argv)
                 if is_user_module:
                     os.chdir(project_dir)
@@ -167,6 +243,8 @@ def main():
                 else:
                     estat = subprocess.call(call_ghc_mod + sys.argv[1:], stdout=f)
             if estat != 0: sys.exit(estat >> 8)
+            # The line below is for not leaving a temporary file created by ghc-mod process failed
+            os.rename(cached_file_name_tmp, cached_file_name)
         with open(cached_file_name, "r") as f:
             sys.stdout.write(f.read())
             sys.exit(0)
