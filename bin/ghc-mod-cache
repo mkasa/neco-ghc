@@ -49,6 +49,7 @@ def check_if_module_is_user(project_dir, module_name):
     return (os.path.exists(s), s)
 
 def cache_outdated(cache_file, user_file):
+    if cache_file == None or user_file == None: return False
     try:
         cf_time = os.path.getmtime(cache_file)
         uf_time = os.path.getmtime(user_file)
@@ -127,9 +128,9 @@ def main():
         cached_file_name = os.path.join(ghc_mod_cache_dir, (module_name if module_name else "") + "-" + canonical_option_coded)
         cache_did_not_exist = not os.path.exists(cached_file_name)
         cached_member_list_was_outdated = is_user_module and cache_outdated(cached_file_name, module_path_if_any)
-        cabal_abs_file_path = os.path.join(project_dir, cabal_file_name)
+        cabal_abs_file_path = os.path.join(project_dir, cabal_file_name) if cabal_file_name else None
         package_yaml_abs_file_path = os.path.join(project_dir, "package.yaml")
-        stack_abs_file_path = os.path.join(project_dir, stack_file_name)
+        stack_abs_file_path = os.path.join(project_dir, stack_file_name) if stack_file_name else None
         cached_module_list_was_outdated = module_name == None and (cache_outdated(cached_file_name, cabal_abs_file_path) or
                                                                    cache_outdated(cached_file_name, stack_abs_file_path) or
                                                                    cache_outdated(cached_file_name, package_yaml_abs_file_path))
