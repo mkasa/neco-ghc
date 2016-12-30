@@ -1,2 +1,2 @@
 
-autocmd BufWritePost package.yaml execute '!stack setup'
+autocmd BufWritePost stack.yaml execute '!stack setup'
