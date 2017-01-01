@@ -53,11 +53,16 @@ neco-ghc by @mkasa on May 31, 2015.
 
 ## Install
 
+* Install `stack`.
 * Install ghc-mod package by `stack install ghc-mod` or `cabal install ghc-mod`
 * Install [modified version of lushtags](https://github.com/mkasa/lushtags).
 * Put neco-ghc-lushtags in the plugin directory (You probably use
-  Pathogen, Bundle, etc).
-* Copy bin/ghc-mod-cache into PATH (e.g., ~/.local/bin or ~/.cabal/bin)
+  Pathogen, NeoBundle, vim-plug, deim.vim, etc).
+* Copy bin/ghc-mod-cache into PATH (e.g., ~/.local/bin or ~/.cabal/bin).
+* Install yaml/json modules for Python (Optional but highly
+  recommended). `pip install pyyaml` and `pip install json` usually work.
+  If `pip` is not available, type `easy_install pip` to install `pip`
+  first. Python 2.x/3.x are both fine.
 
 Note: If you use ghc-mod 5.4, you should use ghc-mod 5.5+.
 Because, ghc-mod 5.5 fixes the rootdir problem.
@@ -113,18 +118,10 @@ Use this flag only if you have some trouble.
 
 ## Troubleshoot
 
-### Q: neco-ghc does not work
+### Q: neco-ghc-lushtags does not work
 
-Check the $PATH variable in vim contains the path to your ghc-mod command.
+Check the $PATH variable in vim contains the path to your `ghc-mod` and `stack` command.
 Or you can execute `:NecoGhcDiagnostics` command for debug.
-
-### Q: Completion isn't working for local functions or modules
-
-https://github.com/eagletmt/neco-ghc/issues/44
-
-It's a limitation of ghc-mod.
-ghc-mod can show symbols of installed modules only.
-ghc-mod cannot show symbols of developing modules or current source file.
 
 ## License
 
