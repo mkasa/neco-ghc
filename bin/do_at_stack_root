@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import sys, os, re, subprocess
+
+debugging = False
+
+def debug_print(m):
+    if debugging:
+        print(m, file=sys.stderr)
+
+def get_project_dir():
+    pw = os.getcwd()
+    while True:
+        if pw == "/":
+            return (".", None, None)
+        for f in os.listdir(pw):
+            if re.search("\.cabal$", f):
+                if os.path.isfile(os.path.join(pw, f)):
+                    if os.path.isfile(os.path.join(pw, "stack.yaml")):
+                        return (pw, f, "stack.yaml")
+                    else:
+                        return (pw, f, None)
+        pw = os.path.normpath(pw + "/..")
+
+def main():
+    print("Run", file=sys.stderr)
+    # parse options
+    if 2 <= len(sys.argv):
+        if sys.argv[1] == "--debug":
+            global debugging
+            debugging = True
+            print("Debugging enabled.", file=sys.stderr)
+            del sys.argv[1]
+
+    # check if using stack
+    project_dir, cabal_file_name, stack_file_name = get_project_dir()
+    debug_print("Project dir: " + project_dir)
+    if project_dir != None:
+        os.chdir(project_dir)
+    estat = subprocess.call(sys.argv[1:])
+    sys.exit(estat >> 8)
