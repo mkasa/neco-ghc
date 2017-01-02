@@ -46,7 +46,7 @@ while(<$fh>) {
         }
     }
     if($i_am_in_extensions && !$i_am_in_test) {
-        if(/\b(\S+)\s*$/) {
+        while(/\b(\w+)(\s|$)/g) {
             my $extention_name = $1;
             if(defined $param_f) {
                 print(" " . $param_f . " " . $extention_name)
