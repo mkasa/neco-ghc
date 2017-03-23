@@ -110,7 +110,7 @@ def ensure_there_is_build_plan_cache(resolver):
     if os.path.exists(build_plan_json_file_path) and not cache_outdated(build_plan_json_file_path, build_plan_file_path):
         return
     build_plan_json_file_path_tmp = build_plan_json_file_path + ".tmp"
-    if not os.path.exists(build_plan_yaml):
+    if not os.path.exists(build_plan_file_path):
         subprocess.check_call(['stack', 'setup'])
     try:
         from yaml import CLoader
@@ -119,6 +119,7 @@ def ensure_there_is_build_plan_cache(resolver):
             build_plan_yaml = yaml.load(f, Loader=CLoader)
     except ImportError as e:
         debug_print("Loading build plan YAML using pure Python parser")
+        import yaml
         with open(build_plan_file_path, "r") as f:
             build_plan_yaml = yaml.load(f)
     debug_print("Loaded build plan YAML")
