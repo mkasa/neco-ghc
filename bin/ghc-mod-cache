@@ -64,11 +64,19 @@ def record_ghc_mod_invocation(args):
     with open(log_file, "a") as f:
         print(args, file=f)
 
+def get_module_name_from_module_version_condition_string(s):
+    """ get the module name from a module version codition string such as 'base < 4.7 && >= 4.0'
+    """
+    s = s.strip()
+    r = re.match(r'(.*?)[^\w-]', s)
+    if r: return r.group(1)
+    return s
+
 def get_depencencies_from_yaml_dict(obj):
     retval = []
     for k, v in obj.items():
         if k == 'dependencies':
-            retval += v
+            retval += map(lambda x: get_module_name_from_module_version_condition_string(x), v)
             continue
         if isinstance(v, dict):
             tmp = get_depencencies_from_yaml_dict(v)
