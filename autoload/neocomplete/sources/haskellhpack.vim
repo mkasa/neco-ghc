@@ -103,8 +103,8 @@ function! s:source.gather_candidates(context) abort "{{{
     endif
     let l:cur_line = getline('.')
     if matchstr(l:cur_line, "\\v^\\s*-") !=# ''
-        echom join(l:name_stack, '/')
-        echom l:imm_prev_name
+        " echom join(l:name_stack, '/')
+        " echom l:imm_prev_name
         if l:imm_prev_name ==# 'dependencies'
             let l:cmd = ['ghc-mod-cache', 'list_stackage', '--modules']
             let l:ret = s:system(l:cmd)
