@@ -40,3 +40,6 @@ def main():
         os.chdir(project_dir)
     estat = subprocess.call(sys.argv[1:])
     sys.exit(estat >> 8)
+
+if __name__ == '__main__':
+    main()
